@@ -2,6 +2,35 @@ import Service from '../models/Service.js';
 import Vehicle from '../models/Vehicle.js';
 import Customer from '../models/Customer.js';
 
+const isValidDateValue = (value) =>
+  value === undefined || value === null || value === '' || !Number.isNaN(Date.parse(value));
+
+const normalizeServicePayload = (payload) => {
+  const normalized = { ...payload };
+
+  if (!isValidDateValue(normalized.serviceDate)) {
+    return { error: 'Service date must be a valid date.' };
+  }
+
+  if (!isValidDateValue(normalized.nextServiceDue)) {
+    return { error: 'Next service due must be a valid date.' };
+  }
+
+  if (normalized.serviceDate) {
+    normalized.serviceDate = new Date(normalized.serviceDate);
+  } else {
+    delete normalized.serviceDate;
+  }
+
+  if (normalized.nextServiceDue) {
+    normalized.nextServiceDue = new Date(normalized.nextServiceDue);
+  } else {
+    delete normalized.nextServiceDue;
+  }
+
+  return { data: normalized };
+};
+
 // Create a new service record
 // export const createService = async (req, res) => {
 //   try {
@@ -65,9 +94,14 @@ export const getServiceById = async (req, res) => {
 // Update service record
 export const updateService = async (req, res) => {
   try {
+    const { data, error } = normalizeServicePayload(req.body);
+    if (error) {
+      return res.status(400).json({ message: error });
+    }
+
     const updatedService = await Service.findByIdAndUpdate(
       req.params.id,
-      { ...req.body, updated_at: new Date() },
+      { ...data, updated_at: new Date() },
       { new: true }
     );
 
@@ -95,15 +129,12 @@ export const deleteService = async (req, res) => {
 
 export const createService = async (req, res) => {
   try {
-    const {
-      vehicleId,
-      serviceDate,
-      serviceType,
-      description,
-      cost,
-      servicedBy,
-      nextServiceDue
-    } = req.body;
+    const { data, error } = normalizeServicePayload(req.body);
+    if (error) {
+      return res.status(400).json({ message: error });
+    }
+
+    const { vehicleId, serviceDate, serviceType, description, cost, servicedBy, nextServiceDue } = data;
 
     const newService = new Service({
       vehicleId,
