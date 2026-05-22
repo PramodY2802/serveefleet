@@ -55,6 +55,16 @@ export const getCustomersByUser = async (req, res) => {
   }
 };
 
+export const getCurrentUserCustomers = async (req, res) => {
+  try {
+    const customers = await Customer.find({ userId: req.user.userId });
+    res.json(customers);
+  } catch (err) {
+    console.error('Get current user customers error:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
 
 /**
  * @route   GET /api/customers/:id

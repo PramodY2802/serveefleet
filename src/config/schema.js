@@ -9,6 +9,7 @@ export const envSchema = z.object({
   REFRESH_TOKEN_SECRET: z.string().min(32),
   REFRESH_TOKEN_EXPIRES_IN: z.string().default('7d'),
   FRONTEND_URL: z.string().url(),
+  FRONTEND_URLS: z.string().optional(),
   SMTP_USER: z.string().email(),
   SMTP_PASS: z.string().min(10),
   EMAIL_USER: z.string().email(),

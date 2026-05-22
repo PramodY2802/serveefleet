@@ -16,6 +16,14 @@ if (!parsed.success) {
 }
 
 const env = parsed.data;
+const clientUrls = [
+  env.FRONTEND_URL,
+  ...(env.FRONTEND_URLS ? env.FRONTEND_URLS.split(',').map((url) => url.trim()).filter(Boolean) : []),
+];
+
+if (env.NODE_ENV !== 'production') {
+  clientUrls.push('http://localhost:3000', 'http://127.0.0.1:3000');
+}
 
 const config = {
   port: env.PORT,
@@ -25,6 +33,7 @@ const config = {
   refreshTokenSecret: env.REFRESH_TOKEN_SECRET,
   refreshTokenExpiresIn: env.REFRESH_TOKEN_EXPIRES_IN,
   clientUrl: env.FRONTEND_URL,
+  clientUrls: [...new Set(clientUrls)],
   smtp: {
     user: env.SMTP_USER,
     pass: env.SMTP_PASS,

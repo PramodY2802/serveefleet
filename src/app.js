@@ -27,7 +27,13 @@ app.use(passport.initialize());
 app.set('trust proxy', 1);
 
 const corsOptions = {
-  origin: [config.clientUrl],
+  origin(origin, callback) {
+    if (!origin || config.clientUrls.includes(origin)) {
+      callback(null, true);
+      return;
+    }
+    callback(new Error(`CORS origin not allowed: ${origin}`));
+  },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   credentials: true,
 };

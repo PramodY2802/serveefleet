@@ -23,7 +23,7 @@ export const login = asyncHandler(async (req, res) => {
 });
 
 export const refreshToken = asyncHandler(async (req, res) => {
-  const existingToken = req.cookies.refreshToken;
+  const existingToken = req.cookies.refreshToken || req.body.refreshToken;
   const result = await AuthService.refreshToken(existingToken, req.ip);
   attachCookie(res, result.refreshToken);
   return res.status(200).json({ status: 'success', message: 'Token refreshed', data: { user: result.user, accessToken: result.accessToken } });

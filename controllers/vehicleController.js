@@ -17,10 +17,33 @@ export const getVehiclesByUserId = async (req, res) => {
   }
 };
 
+export const getVehicles = async (req, res) => {
+  try {
+    const customerId = req.query.customerId || req.user?.userId;
+    const numericCustomerId = parseInt(customerId);
+
+    if (isNaN(numericCustomerId)) {
+      return res.status(400).json({ error: "Invalid customerId" });
+    }
+
+    const vehicles = await Vehicle.find({ userId: numericCustomerId });
+    res.status(200).json(vehicles);
+  } catch (err) {
+    console.error("Failed to fetch vehicles:", err);
+    res.status(500).json({ error: "Failed to fetch vehicles" });
+  }
+};
+
 // Create a new vehicle
 export const createVehicle = async (req, res) => {
   try {
-    const newVehicle = new Vehicle(req.body);
+    const payload = {
+      ...req.body,
+      userId: req.body.userId || req.body.customerId,
+    };
+    delete payload.customerId;
+
+    const newVehicle = new Vehicle(payload);
     await newVehicle.save();
     res.status(201).json(newVehicle);
   } catch (err) {

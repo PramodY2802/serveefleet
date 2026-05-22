@@ -1,5 +1,14 @@
 export const toServiceResponse = (service) => {
   if (!service) return null;
+  const customer = service.vehicle?.customer || service.customer;
+  const mappedCustomer = customer
+    ? {
+        id: customer._id,
+        name: customer.name,
+        email: customer.email,
+      }
+    : undefined;
+
   return {
     id: service._id,
     vehicleId: service.vehicle?._id || service.vehicle,
@@ -9,19 +18,14 @@ export const toServiceResponse = (service) => {
     serviceDate: service.serviceDate,
     nextServiceDue: service.nextServiceDue,
     isActive: service.isActive,
+    customer: mappedCustomer,
     vehicle: service.vehicle
       ? {
           id: service.vehicle._id,
           registrationNumber: service.vehicle.registrationNumber,
           make: service.vehicle.make,
           model: service.vehicle.model,
-          customer: service.vehicle.customer
-            ? {
-                id: service.vehicle.customer._id,
-                name: service.vehicle.customer.name,
-                email: service.vehicle.customer.email,
-              }
-            : undefined,
+          customer: mappedCustomer,
         }
       : undefined,
     createdAt: service.createdAt,

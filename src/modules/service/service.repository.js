@@ -16,9 +16,32 @@ class ServiceRepository {
       .lean();
   }
 
-  static async getList({ search, filters, page, limit, sort }, user) {
+  static async getList({
+    search,
+    filters = {},
+    page,
+    limit,
+    sort,
+    vehicleId,
+    customerId,
+    serviceType,
+    fromDate,
+    toDate,
+    nextServiceDueFrom,
+    nextServiceDueTo,
+  } = {}, user) {
     const pagination = buildPagination({ page, limit, sort });
     const pipeline = [];
+    const activeFilters = {
+      ...filters,
+      vehicleId,
+      customerId,
+      serviceType,
+      fromDate,
+      toDate,
+      nextServiceDueFrom,
+      nextServiceDueTo,
+    };
 
     pipeline.push({ $match: { isActive: true } });
     pipeline.push({
@@ -45,34 +68,34 @@ class ServiceRepository {
     if (user.role !== 'admin') {
       pipeline.push({
         $match: {
-          'customer.user': mongoose.Types.ObjectId(user.id),
+          'customer.user': new mongoose.Types.ObjectId(user.id),
         },
       });
     }
 
-    if (filters.vehicleId && mongoose.Types.ObjectId.isValid(filters.vehicleId)) {
-      pipeline.push({ $match: { 'vehicle._id': mongoose.Types.ObjectId(filters.vehicleId) } });
+    if (activeFilters.vehicleId && mongoose.Types.ObjectId.isValid(activeFilters.vehicleId)) {
+      pipeline.push({ $match: { 'vehicle._id': new mongoose.Types.ObjectId(activeFilters.vehicleId) } });
     }
 
-    if (filters.customerId && mongoose.Types.ObjectId.isValid(filters.customerId)) {
-      pipeline.push({ $match: { 'customer._id': mongoose.Types.ObjectId(filters.customerId) } });
+    if (activeFilters.customerId && mongoose.Types.ObjectId.isValid(activeFilters.customerId)) {
+      pipeline.push({ $match: { 'customer._id': new mongoose.Types.ObjectId(activeFilters.customerId) } });
     }
 
-    if (filters.serviceType) {
-      pipeline.push({ $match: { serviceType: filters.serviceType } });
+    if (activeFilters.serviceType) {
+      pipeline.push({ $match: { serviceType: activeFilters.serviceType } });
     }
 
-    if (filters.fromDate || filters.toDate) {
+    if (activeFilters.fromDate || activeFilters.toDate) {
       const dateQuery = {};
-      if (filters.fromDate) dateQuery.$gte = new Date(filters.fromDate);
-      if (filters.toDate) dateQuery.$lte = new Date(filters.toDate);
+      if (activeFilters.fromDate) dateQuery.$gte = new Date(activeFilters.fromDate);
+      if (activeFilters.toDate) dateQuery.$lte = new Date(activeFilters.toDate);
       pipeline.push({ $match: { serviceDate: dateQuery } });
     }
 
-    if (filters.nextServiceDueFrom || filters.nextServiceDueTo) {
+    if (activeFilters.nextServiceDueFrom || activeFilters.nextServiceDueTo) {
       const dueQuery = {};
-      if (filters.nextServiceDueFrom) dueQuery.$gte = new Date(filters.nextServiceDueFrom);
-      if (filters.nextServiceDueTo) dueQuery.$lte = new Date(filters.nextServiceDueTo);
+      if (activeFilters.nextServiceDueFrom) dueQuery.$gte = new Date(activeFilters.nextServiceDueFrom);
+      if (activeFilters.nextServiceDueTo) dueQuery.$lte = new Date(activeFilters.nextServiceDueTo);
       pipeline.push({ $match: { nextServiceDue: dueQuery } });
     }
 

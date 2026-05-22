@@ -19,16 +19,17 @@ class CustomerRepository {
     return Customer.findOne(query).lean();
   }
 
-  static async getList({ search, filters, page, limit, sort }, user) {
+  static async getList({ search, filters = {}, page, limit, sort, email, phone } = {}, user) {
     const pagination = buildPagination({ page, limit, sort });
     const query = { isActive: true };
+    const activeFilters = { ...filters, email, phone };
 
     if (user.role !== 'admin') {
       query.user = user.id;
     }
 
-    if (filters.email) query.email = filters.email.toLowerCase();
-    if (filters.phone) query.phone = filters.phone;
+    if (activeFilters.email) query.email = activeFilters.email.toLowerCase();
+    if (activeFilters.phone) query.phone = activeFilters.phone;
 
     const searchQuery = buildSearchQuery(['name', 'email', 'phone', 'address'], search);
     const finalQuery = Object.keys(searchQuery).length ? { ...query, ...searchQuery } : query;

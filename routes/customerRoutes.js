@@ -1,11 +1,14 @@
 import express from 'express';
-import { addCustomer, getCustomersByUser, deleteCustomer,updateCustomer,getCustomerById } from '../controllers/customerController.js';
+import { addCustomer, getCustomersByUser, getCurrentUserCustomers, deleteCustomer,updateCustomer,getCustomerById } from '../controllers/customerController.js';
 import { protect } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
 // Add customer
 router.post('/', protect, addCustomer);
+
+// Get customers for logged-in user. This matches the modular frontend contract.
+router.get('/', protect, getCurrentUserCustomers);
 
 // Get customers for logged-in user (by userId param)
 router.get('/:userId', protect, getCustomersByUser);

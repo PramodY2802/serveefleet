@@ -23,24 +23,25 @@ class VehicleRepository {
     }).lean();
   }
 
-  static async getList({ search, filters, page, limit, sort }, user) {
+  static async getList({ search, filters = {}, page, limit, sort, customerId, registrationNumber, make, model, year } = {}, user) {
     const pagination = buildPagination({ page, limit, sort });
     const query = { isActive: true };
+    const activeFilters = { ...filters, customerId, registrationNumber, make, model, year };
 
     if (user.role !== 'admin') {
       const allowedCustomerIds = await Customer.find({ user: user.id, isActive: true }).distinct('_id');
       query.customer = { $in: allowedCustomerIds };
     }
 
-    if (filters.customerId && mongoose.Types.ObjectId.isValid(filters.customerId)) {
-      query.customer = mongoose.Types.ObjectId(filters.customerId);
+    if (activeFilters.customerId && mongoose.Types.ObjectId.isValid(activeFilters.customerId)) {
+      query.customer = new mongoose.Types.ObjectId(activeFilters.customerId);
     }
-    if (filters.registrationNumber) {
-      query.registrationNumber = filters.registrationNumber.trim().toUpperCase();
+    if (activeFilters.registrationNumber) {
+      query.registrationNumber = activeFilters.registrationNumber.trim().toUpperCase();
     }
-    if (filters.make) query.make = filters.make.trim();
-    if (filters.model) query.model = filters.model.trim();
-    if (filters.year) query.year = filters.year;
+    if (activeFilters.make) query.make = activeFilters.make.trim();
+    if (activeFilters.model) query.model = activeFilters.model.trim();
+    if (activeFilters.year) query.year = activeFilters.year;
 
     const searchQuery = buildSearchQuery(
       ['registrationNumber', 'make', 'model', 'fuelType'],

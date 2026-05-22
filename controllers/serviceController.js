@@ -61,11 +61,52 @@ const normalizeServicePayload = (payload) => {
 //   }
 // };
 
+const mapServiceWithCustomer = (service) => {
+  const record = service.toObject ? service.toObject() : service;
+  const vehicle = record.vehicleId;
+  const customer = vehicle?.userId;
+
+  return {
+    ...record,
+    vehicleId: vehicle,
+    vehicle: vehicle
+      ? {
+          ...vehicle,
+          customer: customer
+            ? {
+                id: customer._id,
+                name: customer.name,
+                email: customer.email,
+              }
+            : undefined,
+        }
+      : undefined,
+    customer: customer
+      ? {
+          id: customer._id,
+          name: customer.name,
+          email: customer.email,
+        }
+      : undefined,
+  };
+};
+
 // Get all service records
 export const getAllServices = async (req, res) => {
   try {
-    const services = await Service.find().populate('vehicleId');
-    res.status(200).json(services);
+    const query = {};
+    if (req.query.vehicleId) {
+      const vehicleId = Number(req.query.vehicleId);
+      if (Number.isNaN(vehicleId)) {
+        return res.status(400).json({ message: 'Invalid vehicleId' });
+      }
+      query.vehicleId = vehicleId;
+    }
+
+    const services = await Service.find(query)
+      .populate({ path: 'vehicleId', populate: { path: 'userId', model: 'Customer' } });
+
+    res.status(200).json(services.map(mapServiceWithCustomer));
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch services' });
   }
