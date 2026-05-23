@@ -8,6 +8,11 @@ const vehicleSchema = new mongoose.Schema({
   },
   userId: { type: Number, ref: 'Customer' }, // Reference to Customer model
   registrationNumber: String,
+  plateColor: {
+    type: String,
+    enum: ['white', 'yellow', 'black', 'green', 'red'],
+    default: 'white',
+  },
   make: String,
   model: String,
   year: Number,

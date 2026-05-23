@@ -15,6 +15,7 @@ const createVehicleSchema = z.object({
     message: 'Valid customerId is required',
   }),
   registrationNumber: z.string().min(4, 'Registration number is required'),
+  plateColor: z.enum(['white', 'yellow', 'black', 'green', 'red']).default('white'),
   make: z.string().min(1, 'Make is required').optional(),
   model: z.string().min(1, 'Model is required').optional(),
   year: z.coerce.number().int().positive().optional(),
@@ -23,6 +24,7 @@ const createVehicleSchema = z.object({
 
 const updateVehicleSchema = z.object({
   registrationNumber: z.string().min(4).optional(),
+  plateColor: z.enum(['white', 'yellow', 'black', 'green', 'red']).optional(),
   make: z.string().optional(),
   model: z.string().optional(),
   year: z.coerce.number().int().positive().optional(),

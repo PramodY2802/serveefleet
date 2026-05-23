@@ -103,10 +103,31 @@ export const getAllServices = async (req, res) => {
       query.vehicleId = vehicleId;
     }
 
+    const searchTerm = req.query.search?.trim().toLowerCase() || '';
+
     const services = await Service.find(query)
       .populate({ path: 'vehicleId', populate: { path: 'userId', model: 'Customer' } });
 
-    res.status(200).json(services.map(mapServiceWithCustomer));
+    let mappedServices = services.map(mapServiceWithCustomer);
+
+    if (searchTerm) {
+      mappedServices = mappedServices.filter((service) => {
+        const searchableValues = [
+          service.serviceType,
+          service.description,
+          service.vehicle?.registrationNumber,
+          service.customer?.name,
+          service.customer?.email,
+          service.isActive === false ? 'inactive' : 'recorded',
+        ]
+          .filter(Boolean)
+          .map((value) => String(value).toLowerCase());
+
+        return searchableValues.some((value) => value.includes(searchTerm));
+      });
+    }
+
+    res.status(200).json(mappedServices);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch services' });
   }
@@ -229,6 +250,7 @@ export const getCustomerVehicleSearchData = async (req, res) => {
           phone: customer.phone,
           address: customer.address,
           vehicleNumber: "N/A",
+          plateColor: "white",
           make: "-",
           model: "-",
           fuelType: "-",
@@ -242,6 +264,7 @@ export const getCustomerVehicleSearchData = async (req, res) => {
             phone: customer.phone,
             address: customer.address,
             vehicleNumber: vehicle.registrationNumber,
+            plateColor: vehicle.plateColor || "white",
             make: vehicle.make,
             model: vehicle.model,
             fuelType: vehicle.fuelType,

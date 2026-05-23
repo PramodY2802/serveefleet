@@ -12,7 +12,7 @@ class ServiceRepository {
   static async findById(id) {
     if (!mongoose.Types.ObjectId.isValid(id)) return null;
     return Service.findOne({ _id: id, isActive: true })
-      .populate({ path: 'vehicle', populate: { path: 'customer', select: 'name email user' } })
+      .populate({ path: 'vehicle', populate: { path: 'customer', select: 'name email phone user' } })
       .lean();
   }
 
@@ -150,7 +150,7 @@ class ServiceRepository {
       new: true,
       runValidators: true,
     })
-      .populate({ path: 'vehicle', populate: { path: 'customer', select: 'name email user' } })
+      .populate({ path: 'vehicle', populate: { path: 'customer', select: 'name email phone user' } })
       .lean();
   }
 

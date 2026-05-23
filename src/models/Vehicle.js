@@ -16,6 +16,12 @@ const vehicleSchema = new mongoose.Schema(
       index: true,
       unique: true,
     },
+    plateColor: {
+      type: String,
+      enum: ['white', 'yellow', 'black', 'green', 'red'],
+      default: 'white',
+      trim: true,
+    },
     make: {
       type: String,
       trim: true,

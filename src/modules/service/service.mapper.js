@@ -6,6 +6,7 @@ export const toServiceResponse = (service) => {
         id: customer._id,
         name: customer.name,
         email: customer.email,
+        phone: customer.phone,
       }
     : undefined;
 
@@ -23,6 +24,7 @@ export const toServiceResponse = (service) => {
       ? {
           id: service.vehicle._id,
           registrationNumber: service.vehicle.registrationNumber,
+          plateColor: service.vehicle.plateColor || 'white',
           make: service.vehicle.make,
           model: service.vehicle.model,
           customer: mappedCustomer,

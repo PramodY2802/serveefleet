@@ -4,6 +4,7 @@ export const toVehicleResponse = (vehicle) => {
     id: vehicle._id,
     customerId: vehicle.customer?._id || vehicle.customer,
     registrationNumber: vehicle.registrationNumber,
+    plateColor: vehicle.plateColor || 'white',
     make: vehicle.make,
     model: vehicle.model,
     year: vehicle.year,

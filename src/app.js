@@ -15,6 +15,7 @@ import authRoutes from './modules/auth/auth.routes.js';
 import customerRoutes from './modules/customer/customer.routes.js';
 import vehicleRoutes from './modules/vehicle/vehicle.routes.js';
 import serviceRoutes from './modules/service/service.routes.js';
+import billingRoutes from './modules/billing/billing.routes.js';
 import errorHandler from './common/middlewares/errorHandler.js';
 import notFoundHandler from './common/middlewares/notFoundHandler.js';
 import requestLogger from './common/middlewares/requestLogger.js';
@@ -55,6 +56,7 @@ app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/customers', customerRoutes);
 app.use('/api/vehicles', vehicleRoutes);
 app.use('/api/services', serviceRoutes);
+app.use('/api/bills', billingRoutes);
 
 app.get('/health', (req, res) => res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() }));
 app.get('/metrics', (req, res) => res.status(200).json({ status: 'metrics placeholder' }));

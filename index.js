@@ -8,6 +8,7 @@ import auth from './routes/auth.js';
 import customerRoutes from './routes/customerRoutes.js';
 import vehicleRoutes from './routes/vehicleRoutes.js';
 import serviceRoutes from './routes/serviceRoutes.js';
+import billingRoutes from './routes/billingRoutes.js';
 import './config/passport.js';
 
 dotenv.config();
@@ -31,6 +32,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/customers', customerRoutes);
 app.use('/api/vehicles', vehicleRoutes);
 app.use('/api/services', serviceRoutes);
+app.use('/api/bills', billingRoutes);
 
 // Basic health check
 app.get('/', (req, res) => {
