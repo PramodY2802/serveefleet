@@ -28,6 +28,19 @@ const normalizeServicePayload = (payload) => {
     delete normalized.nextServiceDue;
   }
 
+  if (normalized.cost === undefined || normalized.cost === null || normalized.cost === '') {
+    if (normalized.pricingSummary && normalized.pricingSummary.subtotal !== undefined) {
+      normalized.cost = Number(normalized.pricingSummary.subtotal) || 0;
+    } else if (Array.isArray(normalized.billItems) && normalized.billItems.length > 0) {
+      normalized.cost = normalized.billItems.reduce((sum, item) => {
+        const quantity = Number(item.quantity) || 1;
+        const unitPrice = Number(item.unitPrice ?? item.price ?? item.amount ?? item.totalAmount ?? 0) || 0;
+        const lineTotal = Number(item.lineTotal ?? item.totalAmount ?? quantity * unitPrice) || 0;
+        return sum + lineTotal;
+      }, 0);
+    }
+  }
+
   return { data: normalized };
 };
 
@@ -75,6 +88,7 @@ const mapServiceWithCustomer = (service) => {
           customer: customer
             ? {
                 id: customer._id,
+                userId: customer.userId,
                 name: customer.name,
                 email: customer.email,
               }
@@ -83,10 +97,11 @@ const mapServiceWithCustomer = (service) => {
       : undefined,
     customer: customer
       ? {
-          id: customer._id,
-          name: customer.name,
-          email: customer.email,
-        }
+        id: customer._id,
+        userId: customer.userId,
+        name: customer.name,
+        email: customer.email,
+      }
       : undefined,
   };
 };
@@ -108,7 +123,9 @@ export const getAllServices = async (req, res) => {
     const services = await Service.find(query)
       .populate({ path: 'vehicleId', populate: { path: 'userId', model: 'Customer' } });
 
-    let mappedServices = services.map(mapServiceWithCustomer);
+    let mappedServices = services
+      .map(mapServiceWithCustomer)
+      .filter((service) => String(service.customer?.userId || service.vehicle?.customer?.userId || '') === String(req.user?.userId || ''));
 
     if (searchTerm) {
       mappedServices = mappedServices.filter((service) => {
@@ -228,8 +245,13 @@ export const createService = async (req, res) => {
 // Get all customers with their vehicles (for search)
 export const getCustomerVehicleSearchData = async (req, res) => {
   try {
-    // Fetch all customers
-    const customers = await Customer.find();
+    const userId = Number(req.user?.userId);
+    if (Number.isNaN(userId)) {
+      return res.status(401).json({ message: 'Authorization required' });
+    }
+
+    // Fetch all customers for the logged-in user
+    const customers = await Customer.find({ userId });
 
     // Fetch all vehicles
     const vehicles = await Vehicle.find();
@@ -239,7 +261,7 @@ export const getCustomerVehicleSearchData = async (req, res) => {
 
     for (const customer of customers) {
       const customerVehicles = vehicles.filter(
-        (v) => v.userId.toString() === customer._id.toString()
+        (v) => Number(v.userId) === Number(customer._id)
       );
 
       if (customerVehicles.length === 0) {

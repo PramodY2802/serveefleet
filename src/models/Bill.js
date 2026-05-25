@@ -2,9 +2,15 @@ import mongoose from 'mongoose';
 
 const billItemSchema = new mongoose.Schema(
   {
-    description: {
+    name: {
       type: String,
       required: true,
+      trim: true,
+    },
+    itemType: {
+      type: String,
+      enum: ['part', 'labour', 'service', 'accessory'],
+      default: 'service',
       trim: true,
     },
     quantity: {
@@ -17,17 +23,7 @@ const billItemSchema = new mongoose.Schema(
       required: true,
       min: 0,
     },
-    taxRate: {
-      type: Number,
-      default: 0,
-      min: 0,
-    },
-    discountAmount: {
-      type: Number,
-      default: 0,
-      min: 0,
-    },
-    totalAmount: {
+    lineTotal: {
       type: Number,
       required: true,
       min: 0,
@@ -108,6 +104,78 @@ const billSnapshotVehicleSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const pricingSummarySchema = new mongoose.Schema(
+  {
+    subtotal: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    discountAmount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    taxAmount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    grandTotal: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    currency: {
+      type: String,
+      default: 'INR',
+      trim: true,
+    },
+    gstRate: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+  },
+  { _id: false }
+);
+
+const taxBreakdownSchema = new mongoose.Schema(
+  {
+    taxableAmount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    gstRate: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    cgstAmount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    sgstAmount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    igstAmount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    taxAmount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+  },
+  { _id: false }
+);
+
 const billSchema = new mongoose.Schema(
   {
     billNumber: {
@@ -152,35 +220,51 @@ const billSchema = new mongoose.Schema(
         type: Date,
         required: true,
       },
+      serviceOdometer: {
+        type: Number,
+        min: 0,
+      },
       nextServiceDue: {
         type: Date,
       },
+      nextServiceOdometer: {
+        type: Number,
+        min: 0,
+      },
+      cost: {
+        type: Number,
+        min: 0,
+        default: 0,
+      },
+      billItems: {
+        type: [billItemSchema],
+        default: [],
+      },
+      pricingSummary: {
+        type: pricingSummarySchema,
+        default: () => ({}),
+      },
+      taxBreakdown: {
+        type: taxBreakdownSchema,
+        default: () => ({}),
+      },
+      currency: {
+        type: String,
+        default: 'INR',
+        trim: true,
+      },
     },
-    items: {
+    billItems: {
       type: [billItemSchema],
       default: [],
     },
-    totals: {
-      subtotal: {
-        type: Number,
-        default: 0,
-        min: 0,
-      },
-      discountAmount: {
-        type: Number,
-        default: 0,
-        min: 0,
-      },
-      taxAmount: {
-        type: Number,
-        default: 0,
-        min: 0,
-      },
-      totalAmount: {
-        type: Number,
-        default: 0,
-        min: 0,
-      },
+    pricingSummary: {
+      type: pricingSummarySchema,
+      default: () => ({}),
+    },
+    taxBreakdown: {
+      type: taxBreakdownSchema,
+      default: () => ({}),
     },
     currency: {
       type: String,
@@ -255,5 +339,6 @@ const billSchema = new mongoose.Schema(
 billSchema.index({ ownerUserId: 1, createdAt: -1 });
 billSchema.index({ 'customer.id': 1, createdAt: -1 });
 billSchema.index({ 'vehicle.registrationNumber': 1, createdAt: -1 });
+billSchema.index({ 'billItems.name': 1, createdAt: -1 });
 
 export default mongoose.model('Bill', billSchema);

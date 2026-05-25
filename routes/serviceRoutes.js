@@ -1,4 +1,5 @@
 import express from 'express';
+import { protect } from '../middleware/authMiddleware.js';
 import {
   createService,
   getAllServices,
@@ -12,12 +13,12 @@ import {
 const router = express.Router();
 
 // Service routes
-router.get('/search/customers-vehicles', getCustomerVehicleSearchData); 
-router.post('/', createService);           
-router.get('/', getAllServices);            
-router.get('/:id', getServiceById);         
-router.put('/:id', updateService);         
-router.delete('/:id', deleteService);
+router.get('/search/customers-vehicles', protect, getCustomerVehicleSearchData); 
+router.post('/', protect, createService);           
+router.get('/', protect, getAllServices);            
+router.get('/:id', protect, getServiceById);         
+router.put('/:id', protect, updateService);         
+router.delete('/:id', protect, deleteService);
 // router.get('/:vehicleId', getServicesByVehicleId);
 
 

@@ -65,13 +65,11 @@ class ServiceRepository {
     pipeline.push({ $unwind: '$customer' });
     pipeline.push({ $match: { 'customer.isActive': true } });
 
-    if (user.role !== 'admin') {
-      pipeline.push({
-        $match: {
-          'customer.user': new mongoose.Types.ObjectId(user.id),
-        },
-      });
-    }
+    pipeline.push({
+      $match: {
+        'customer.user': new mongoose.Types.ObjectId(user.id),
+      },
+    });
 
     if (activeFilters.vehicleId && mongoose.Types.ObjectId.isValid(activeFilters.vehicleId)) {
       pipeline.push({ $match: { 'vehicle._id': new mongoose.Types.ObjectId(activeFilters.vehicleId) } });
@@ -100,7 +98,7 @@ class ServiceRepository {
     }
 
     const searchQuery = buildSearchQuery(
-      ['serviceType', 'description', 'vehicle.registrationNumber', 'customer.name', 'customer.email'],
+      ['serviceType', 'description', 'billItems.name', 'billItems.itemType', 'vehicle.registrationNumber', 'customer.name', 'customer.email'],
       search
     );
     if (Object.keys(searchQuery).length) {

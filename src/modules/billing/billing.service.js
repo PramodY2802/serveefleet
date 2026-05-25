@@ -4,7 +4,6 @@ import ServiceRepository from '../service/service.repository.js';
 import BillingRepository from './billing.repository.js';
 import { toBillResponse } from './billing.mapper.js';
 import {
-  calculateBillTotals,
   buildBillItemsFromService,
   createAuditTrailEntry,
   generateBillNumber,
@@ -26,8 +25,7 @@ class BillingService {
       return toBillResponse(existingBill);
     }
 
-    const items = buildBillItemsFromService(service);
-    const totals = calculateBillTotals(items);
+    const billingData = buildBillItemsFromService(service);
 
     const bill = await BillingRepository.create({
       billNumber: generateBillNumber(),
@@ -49,21 +47,42 @@ class BillingService {
         year: service.vehicle.year,
         fuelType: service.vehicle.fuelType,
       },
+      billItems: billingData.billItems,
+      pricingSummary: billingData.pricingSummary,
+      taxBreakdown: billingData.taxBreakdown,
       serviceSnapshot: {
         serviceType: service.serviceType,
         description: service.description,
         serviceDate: service.serviceDate || new Date(),
+        serviceOdometer: service.serviceOdometer,
         nextServiceDue: service.nextServiceDue,
+        nextServiceOdometer: service.nextServiceOdometer,
+        cost: billingData.cost,
+        billItems: billingData.billItems,
+        pricingSummary: billingData.pricingSummary,
+        taxBreakdown: billingData.taxBreakdown,
+        currency: billingData.pricingSummary.currency || 'INR',
       },
-      items,
-      totals,
-      currency: 'INR',
+      currency: billingData.pricingSummary.currency || 'INR',
       status: 'issued',
       payment: {
         status: 'pending',
       },
       auditTrail: [createAuditTrailEntry(user)],
     });
+
+    return toBillResponse(bill);
+  }
+
+  static async getBillByServiceId(serviceId, user) {
+    const bill = await BillingRepository.findByServiceId(serviceId);
+    if (!bill) {
+      throw new AppError('Bill not found for this service record', 404);
+    }
+
+    if (user.role !== 'admin' && String(bill.ownerUserId) !== String(user.id)) {
+      throw new AppError('Not authorized to access this bill', 403);
+    }
 
     return toBillResponse(bill);
   }

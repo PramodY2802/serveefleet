@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import mongoose from 'mongoose';
 import ValidationError from '../../common/errors/ValidationError.js';
+import { BILL_ITEM_TYPES } from '../billing/billing.utils.js';
 
 const validate = (data, schema) => {
   const result = schema.safeParse(data);
@@ -14,6 +15,32 @@ const dateString = z.string().refine((value) => !Number.isNaN(Date.parse(value))
   message: 'Invalid date format',
 });
 
+const serviceBillItemSchema = z.object({
+  name: z.string().min(1, 'Item name is required'),
+  itemType: z.enum(BILL_ITEM_TYPES),
+  quantity: z.coerce.number().min(1, 'Quantity must be at least 1'),
+  unitPrice: z.coerce.number().min(0, 'Unit price cannot be negative'),
+  lineTotal: z.coerce.number().min(0).optional(),
+});
+
+const pricingSummarySchema = z.object({
+  subtotal: z.coerce.number().min(0).optional(),
+  discountAmount: z.coerce.number().min(0).optional(),
+  taxAmount: z.coerce.number().min(0).optional(),
+  grandTotal: z.coerce.number().min(0).optional(),
+  currency: z.string().trim().min(1).optional(),
+  gstRate: z.coerce.number().min(0).optional(),
+}).optional();
+
+const taxBreakdownSchema = z.object({
+  taxableAmount: z.coerce.number().min(0).optional(),
+  gstRate: z.coerce.number().min(0).optional(),
+  cgstAmount: z.coerce.number().min(0).optional(),
+  sgstAmount: z.coerce.number().min(0).optional(),
+  igstAmount: z.coerce.number().min(0).optional(),
+  taxAmount: z.coerce.number().min(0).optional(),
+}).optional();
+
 const createServiceSchema = z.object({
   vehicleId: z.string().refine((value) => mongoose.Types.ObjectId.isValid(value), {
     message: 'Valid vehicleId is required',
@@ -22,7 +49,12 @@ const createServiceSchema = z.object({
   serviceType: z.string().min(2, 'Service type is required'),
   description: z.string().optional(),
   cost: z.coerce.number().min(0).optional(),
+  billItems: z.array(serviceBillItemSchema).optional(),
+  pricingSummary: pricingSummarySchema,
+  taxBreakdown: taxBreakdownSchema,
+  serviceOdometer: z.coerce.number().min(0).optional(),
   nextServiceDue: dateString.optional(),
+  nextServiceOdometer: z.coerce.number().min(0).optional(),
 });
 
 const updateServiceSchema = z.object({
@@ -33,7 +65,12 @@ const updateServiceSchema = z.object({
   serviceType: z.string().min(2).optional(),
   description: z.string().optional(),
   cost: z.coerce.number().min(0).optional(),
+  billItems: z.array(serviceBillItemSchema).optional(),
+  pricingSummary: pricingSummarySchema,
+  taxBreakdown: taxBreakdownSchema,
+  serviceOdometer: z.coerce.number().min(0).optional(),
   nextServiceDue: dateString.optional(),
+  nextServiceOdometer: z.coerce.number().min(0).optional(),
 }).refine((data) => Object.keys(data).length > 0, {
   message: 'At least one field must be updated',
 });

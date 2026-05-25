@@ -9,11 +9,13 @@ import {
   generateBillFromService,
   getBills,
   getBillById,
+  getBillByServiceId,
 } from './billing.controller.js';
 
 const router = express.Router();
 
 router.post('/from-service/:serviceId', protect, validateBillFromService, generateBillFromService);
+router.get('/by-service/:serviceId', protect, validateBillFromService, getBillByServiceId);
 router.get('/', protect, validateBillList, getBills);
 router.get('/:id', protect, validateBillId, getBillById);
 

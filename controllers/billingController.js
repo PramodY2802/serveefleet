@@ -39,29 +39,57 @@ const buildBillPayload = async (serviceId) => {
   const customer = await Customer.findById(vehicle.userId);
   if (!customer) return null;
 
-  const unitPrice = normalizeMoney(service.cost);
-  const serviceCharge = unitPrice;
-  const partsCost = 0;
-  const labourCharge = 0;
-  const taxAmount = 0;
-  const discountAmount = 0;
-  const totalAmount = serviceCharge + partsCost + labourCharge + taxAmount - discountAmount;
-  const items = [
-    {
-      description: service.description || service.serviceType || 'Service charge',
-      quantity: 1,
-      unitPrice: serviceCharge,
-      taxRate: 0,
-      discountAmount: 0,
-      totalAmount: serviceCharge,
-    },
-  ];
+  const normalizedBillItems = Array.isArray(service.billItems) && service.billItems.length > 0
+    ? service.billItems.map((item) => ({
+        name: item.name || item.description || service.description || service.serviceType || 'Service charge',
+        description: item.description || item.name || service.description || service.serviceType || 'Service charge',
+        itemType: item.itemType || item.type || 'service',
+        quantity: Number(item.quantity) || 1,
+        unitPrice: normalizeMoney(item.unitPrice ?? item.price ?? item.amount ?? item.totalAmount ?? service.cost),
+        lineTotal: normalizeMoney(item.lineTotal ?? item.totalAmount ?? (Number(item.quantity) || 1) * Number(item.unitPrice ?? item.price ?? item.amount ?? item.totalAmount ?? service.cost)),
+      }))
+    : [
+        {
+          name: service.description || service.serviceType || 'Service charge',
+          description: service.description || service.serviceType || 'Service charge',
+          itemType: 'service',
+          quantity: 1,
+          unitPrice: normalizeMoney(service.cost),
+          lineTotal: normalizeMoney(service.cost),
+        },
+      ];
+
+  const pricingSummary = {
+    subtotal: normalizeMoney(service.pricingSummary?.subtotal ?? normalizedBillItems.reduce((sum, item) => sum + (Number(item.lineTotal) || 0), 0)),
+    discountAmount: normalizeMoney(service.pricingSummary?.discountAmount ?? 0),
+    taxAmount: normalizeMoney(service.pricingSummary?.taxAmount ?? 0),
+    grandTotal: normalizeMoney(
+      service.pricingSummary?.grandTotal ??
+        (normalizeMoney(service.pricingSummary?.subtotal ?? normalizedBillItems.reduce((sum, item) => sum + (Number(item.lineTotal) || 0), 0)) -
+          normalizeMoney(service.pricingSummary?.discountAmount ?? 0) +
+          normalizeMoney(service.pricingSummary?.taxAmount ?? 0))
+    ),
+    currency: service.pricingSummary?.currency || 'INR',
+    gstRate: normalizeMoney(service.pricingSummary?.gstRate ?? service.taxBreakdown?.gstRate ?? 0),
+  };
+
+  const taxBreakdown = {
+    taxableAmount: normalizeMoney(
+      service.taxBreakdown?.taxableAmount ??
+        Math.max(0, pricingSummary.subtotal - pricingSummary.discountAmount)
+    ),
+    gstRate: normalizeMoney(service.taxBreakdown?.gstRate ?? pricingSummary.gstRate),
+    cgstAmount: normalizeMoney(service.taxBreakdown?.cgstAmount ?? pricingSummary.taxAmount / 2),
+    sgstAmount: normalizeMoney(service.taxBreakdown?.sgstAmount ?? pricingSummary.taxAmount / 2),
+    igstAmount: normalizeMoney(service.taxBreakdown?.igstAmount ?? 0),
+    taxAmount: normalizeMoney(service.taxBreakdown?.taxAmount ?? pricingSummary.taxAmount),
+  };
 
   const totals = {
-    subtotal: serviceCharge + partsCost + labourCharge,
-    discountAmount,
-    taxAmount,
-    totalAmount,
+    subtotal: pricingSummary.subtotal,
+    discountAmount: pricingSummary.discountAmount,
+    taxAmount: pricingSummary.taxAmount,
+    totalAmount: pricingSummary.grandTotal,
   };
 
   const billNumber = `INV-${String(service._id).padStart(6, '0')}`;
@@ -87,19 +115,29 @@ const buildBillPayload = async (serviceId) => {
       serviceType: service.serviceType,
       description: service.description,
       serviceDate: service.serviceDate,
+      serviceOdometer: service.serviceOdometer,
       nextServiceDue: service.nextServiceDue,
+      nextServiceOdometer: service.nextServiceOdometer,
+      cost: service.cost ?? pricingSummary.subtotal,
+      billItems: normalizedBillItems,
+      pricingSummary,
+      taxBreakdown,
+      currency: pricingSummary.currency,
     },
-    items,
+    items: normalizedBillItems,
+    billItems: normalizedBillItems,
     totals,
+    pricingSummary,
+    taxBreakdown,
     summary: {
-      serviceCharge,
-      partsCost,
-      labourCharge,
-      taxAmount,
-      discountAmount,
-      totalAmount,
+      serviceCharge: pricingSummary.subtotal,
+      partsCost: 0,
+      labourCharge: 0,
+      taxAmount: pricingSummary.taxAmount,
+      discountAmount: pricingSummary.discountAmount,
+      totalAmount: pricingSummary.grandTotal,
     },
-    currency: 'INR',
+    currency: pricingSummary.currency,
     status: 'issued',
     payment: {
       status: 'pending',
@@ -131,12 +169,29 @@ const mapBill = (bill) => {
     customer: bill.customer,
     vehicle: bill.vehicle,
     serviceSnapshot: bill.serviceSnapshot,
-    items: bill.items || [],
+    items: bill.items || bill.billItems || [],
+    billItems: bill.billItems || bill.items || [],
     totals: bill.totals || {
       subtotal: 0,
       discountAmount: 0,
       taxAmount: 0,
       totalAmount: 0,
+    },
+    pricingSummary: bill.pricingSummary || {
+      subtotal: bill.totals?.subtotal || 0,
+      discountAmount: bill.totals?.discountAmount || 0,
+      taxAmount: bill.totals?.taxAmount || 0,
+      grandTotal: bill.totals?.totalAmount || 0,
+      currency: bill.currency || 'INR',
+      gstRate: 0,
+    },
+    taxBreakdown: bill.taxBreakdown || {
+      taxableAmount: bill.totals?.subtotal || 0,
+      gstRate: 0,
+      cgstAmount: 0,
+      sgstAmount: 0,
+      igstAmount: 0,
+      taxAmount: bill.totals?.taxAmount || 0,
     },
     summary: bill.summary || {
       serviceCharge: bill.totals?.subtotal || 0,
@@ -164,6 +219,44 @@ const recomputeBillTotals = (bill) => {
   const taxAmount = normalizeMoney(summary.taxAmount);
   const discountAmount = normalizeMoney(summary.discountAmount);
   const totalAmount = normalizeMoney(serviceCharge + partsCost + labourCharge + taxAmount - discountAmount);
+  const subtotal = normalizeMoney(serviceCharge + partsCost + labourCharge);
+  const billItems = Array.isArray(bill.billItems) && bill.billItems.length
+    ? bill.billItems
+    : Array.isArray(bill.items) && bill.items.length
+      ? bill.items
+      : [
+          {
+            name: bill.serviceSnapshot?.description || bill.serviceSnapshot?.serviceType || 'Service charge',
+            description: bill.serviceSnapshot?.description || bill.serviceSnapshot?.serviceType || 'Service charge',
+            itemType: 'service',
+            quantity: 1,
+            unitPrice: serviceCharge,
+            lineTotal: serviceCharge,
+            taxRate: 0,
+            discountAmount: 0,
+            totalAmount: serviceCharge,
+          },
+        ];
+
+  const pricingSummary = {
+    subtotal,
+    discountAmount,
+    taxAmount,
+    grandTotal: totalAmount,
+    currency: bill.pricingSummary?.currency || bill.currency || 'INR',
+    gstRate: bill.pricingSummary?.gstRate || bill.taxBreakdown?.gstRate || 0,
+  };
+
+  const taxBreakdown = {
+    taxableAmount: normalizeMoney(
+      bill.taxBreakdown?.taxableAmount ?? Math.max(0, subtotal - discountAmount)
+    ),
+    gstRate: normalizeMoney(bill.taxBreakdown?.gstRate ?? pricingSummary.gstRate),
+    cgstAmount: normalizeMoney(bill.taxBreakdown?.cgstAmount ?? taxAmount / 2),
+    sgstAmount: normalizeMoney(bill.taxBreakdown?.sgstAmount ?? taxAmount / 2),
+    igstAmount: normalizeMoney(bill.taxBreakdown?.igstAmount ?? 0),
+    taxAmount: normalizeMoney(bill.taxBreakdown?.taxAmount ?? taxAmount),
+  };
 
   return {
     summary: {
@@ -175,23 +268,16 @@ const recomputeBillTotals = (bill) => {
       totalAmount,
     },
     totals: {
-      subtotal: normalizeMoney(serviceCharge + partsCost + labourCharge),
+      subtotal,
       discountAmount,
       taxAmount,
       totalAmount,
     },
-    items: Array.isArray(bill.items) && bill.items.length
-      ? bill.items
-      : [
-          {
-            description: bill.serviceSnapshot?.description || bill.serviceSnapshot?.serviceType || 'Service charge',
-            quantity: 1,
-            unitPrice: serviceCharge,
-            taxRate: 0,
-            discountAmount: 0,
-            totalAmount: serviceCharge,
-          },
-        ],
+    items: billItems,
+    billItems,
+    pricingSummary,
+    taxBreakdown,
+    currency: pricingSummary.currency,
   };
 };
 
@@ -276,12 +362,36 @@ export const updateBill = async (req, res) => {
 
     if (Array.isArray(req.body.items)) {
       bill.items = req.body.items;
+      bill.billItems = req.body.items;
+    }
+
+    if (Array.isArray(req.body.billItems)) {
+      bill.billItems = req.body.billItems;
+      bill.items = req.body.billItems;
+    }
+
+    if (req.body.pricingSummary) {
+      bill.pricingSummary = {
+        ...(bill.pricingSummary || {}),
+        ...req.body.pricingSummary,
+      };
+    }
+
+    if (req.body.taxBreakdown) {
+      bill.taxBreakdown = {
+        ...(bill.taxBreakdown || {}),
+        ...req.body.taxBreakdown,
+      };
     }
 
     const recomputed = recomputeBillTotals(bill);
     bill.summary = recomputed.summary;
     bill.totals = recomputed.totals;
     bill.items = recomputed.items;
+    bill.billItems = recomputed.billItems;
+    bill.pricingSummary = recomputed.pricingSummary;
+    bill.taxBreakdown = recomputed.taxBreakdown;
+    bill.currency = recomputed.currency;
     bill.updated_at = new Date();
 
     await bill.save();

@@ -70,6 +70,10 @@ class BillingRepository {
         'vehicle.registrationNumber',
         'serviceSnapshot.serviceType',
         'serviceSnapshot.description',
+        'billItems.name',
+        'billItems.itemType',
+        'items.name',
+        'items.itemType',
       ],
       search
     );
@@ -78,6 +82,16 @@ class BillingRepository {
 
     const [items, total] = await Promise.all([
       Bill.find(finalQuery)
+        .populate({
+          path: 'service',
+          populate: {
+            path: 'vehicle',
+            populate: {
+              path: 'customer',
+              select: 'name email phone user',
+            },
+          },
+        })
         .sort(pagination.sort)
         .skip(pagination.skip)
         .limit(pagination.limit)

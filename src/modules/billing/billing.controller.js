@@ -16,3 +16,8 @@ export const getBillById = asyncHandler(async (req, res) => {
   const result = await BillingService.getBillById(req.params.id, req.user);
   return successResponse(res, result, 'Bill retrieved');
 });
+
+export const getBillByServiceId = asyncHandler(async (req, res) => {
+  const result = await BillingService.getBillByServiceId(req.params.serviceId, req.user);
+  return successResponse(res, result, 'Bill retrieved');
+});
