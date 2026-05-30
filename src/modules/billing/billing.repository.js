@@ -40,6 +40,25 @@ class BillingRepository {
       .lean();
   }
 
+  static async updateByServiceId(serviceId, updates) {
+    if (!mongoose.Types.ObjectId.isValid(serviceId)) return null;
+    return Bill.findOneAndUpdate({ service: serviceId }, updates, {
+      new: true,
+      runValidators: true,
+    })
+      .populate({
+        path: 'service',
+        populate: {
+          path: 'vehicle',
+          populate: {
+            path: 'customer',
+            select: 'name email phone user',
+          },
+        },
+      })
+      .lean();
+  }
+
   static async getList({
     search,
     status,

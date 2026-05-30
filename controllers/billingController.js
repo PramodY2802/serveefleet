@@ -26,12 +26,9 @@ const buildWhatsAppMessage = (bill) => {
   ].join('\n');
 };
 
-const buildBillPayload = async (serviceId) => {
+const buildBillData = async (serviceId) => {
   const service = await Service.findById(serviceId);
   if (!service) return null;
-
-  const existing = await Bill.findOne({ serviceId }).lean();
-  if (existing) return existing;
 
   const vehicle = await Vehicle.findById(service.vehicleId);
   if (!vehicle) return null;
@@ -92,7 +89,35 @@ const buildBillPayload = async (serviceId) => {
     totalAmount: pricingSummary.grandTotal,
   };
 
-  const billNumber = `INV-${String(service._id).padStart(6, '0')}`;
+  return {
+    service,
+    vehicle,
+    customer,
+    normalizedBillItems,
+    pricingSummary,
+    taxBreakdown,
+    totals,
+    billNumber: `INV-${String(service._id).padStart(6, '0')}`,
+  };
+};
+
+const buildBillPayload = async (serviceId) => {
+  const existing = await Bill.findOne({ serviceId }).lean();
+  if (existing) return existing;
+
+  const billData = await buildBillData(serviceId);
+  if (!billData) return null;
+
+  const {
+    service,
+    vehicle,
+    customer,
+    normalizedBillItems,
+    pricingSummary,
+    taxBreakdown,
+    totals,
+    billNumber,
+  } = billData;
   const bill = await Bill.create({
     billNumber,
     serviceId: service._id,
@@ -155,6 +180,63 @@ const buildBillPayload = async (serviceId) => {
     ],
   });
 
+  return bill.toObject();
+};
+
+const syncBillFromService = async (serviceId) => {
+  const bill = await Bill.findOne({ serviceId });
+  if (!bill) return null;
+
+  const billData = await buildBillData(serviceId);
+  if (!billData) return null;
+
+  const {
+    service,
+    vehicle,
+    customer,
+    normalizedBillItems,
+    pricingSummary,
+    taxBreakdown,
+    totals,
+  } = billData;
+
+  bill.customer = {
+    id: customer._id,
+    name: customer.name,
+    email: customer.email,
+    phone: customer.phone,
+  };
+  bill.vehicle = {
+    id: vehicle._id,
+    registrationNumber: vehicle.registrationNumber,
+    plateColor: vehicle.plateColor || 'white',
+    make: vehicle.make,
+    model: vehicle.model,
+    year: vehicle.year,
+    fuelType: vehicle.fuelType,
+  };
+  bill.serviceSnapshot = {
+    serviceType: service.serviceType,
+    description: service.description,
+    serviceDate: service.serviceDate,
+    serviceOdometer: service.serviceOdometer,
+    nextServiceDue: service.nextServiceDue,
+    nextServiceOdometer: service.nextServiceOdometer,
+    cost: service.cost ?? pricingSummary.subtotal,
+    billItems: normalizedBillItems,
+    pricingSummary,
+    taxBreakdown,
+    currency: pricingSummary.currency,
+  };
+  bill.items = normalizedBillItems;
+  bill.billItems = normalizedBillItems;
+  bill.totals = totals;
+  bill.pricingSummary = pricingSummary;
+  bill.taxBreakdown = taxBreakdown;
+  bill.currency = pricingSummary.currency;
+  bill.updated_at = new Date();
+
+  await bill.save();
   return bill.toObject();
 };
 
@@ -418,3 +500,5 @@ export const getBillByServiceId = async (req, res) => {
     return res.status(500).json({ message: 'Failed to fetch bill', details: error.message });
   }
 };
+
+export const syncBillForService = async (serviceId) => syncBillFromService(serviceId);

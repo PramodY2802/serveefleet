@@ -162,6 +162,47 @@ export const buildBillItemsFromService = (service) =>
     currency: service.pricingSummary?.currency || service.currency,
   });
 
+export const buildBillSnapshotFromService = (service) => {
+  const billingData = buildBillItemsFromService(service);
+
+  return {
+    ownerUserId: service.vehicle.customer.user,
+    customer: {
+      id: service.vehicle.customer._id,
+      userId: service.vehicle.customer.user,
+      name: service.vehicle.customer.name,
+      email: service.vehicle.customer.email,
+      phone: service.vehicle.customer.phone,
+    },
+    vehicle: {
+      id: service.vehicle._id,
+      registrationNumber: service.vehicle.registrationNumber,
+      plateColor: service.vehicle.plateColor || 'white',
+      make: service.vehicle.make,
+      model: service.vehicle.model,
+      year: service.vehicle.year,
+      fuelType: service.vehicle.fuelType,
+    },
+    billItems: billingData.billItems,
+    pricingSummary: billingData.pricingSummary,
+    taxBreakdown: billingData.taxBreakdown,
+    currency: billingData.pricingSummary.currency || DEFAULT_CURRENCY,
+    serviceSnapshot: {
+      serviceType: service.serviceType,
+      description: service.description,
+      serviceDate: service.serviceDate || new Date(),
+      serviceOdometer: service.serviceOdometer,
+      nextServiceDue: service.nextServiceDue,
+      nextServiceOdometer: service.nextServiceOdometer,
+      cost: billingData.cost,
+      billItems: billingData.billItems,
+      pricingSummary: billingData.pricingSummary,
+      taxBreakdown: billingData.taxBreakdown,
+      currency: billingData.pricingSummary.currency || DEFAULT_CURRENCY,
+    },
+  };
+};
+
 export const createAuditTrailEntry = (user, note = 'Bill generated from service record') => ({
   action: 'bill_generated',
   note,

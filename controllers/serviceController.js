@@ -1,6 +1,7 @@
 import Service from '../models/Service.js';
 import Vehicle from '../models/Vehicle.js';
 import Customer from '../models/Customer.js';
+import { syncBillForService } from './billingController.js';
 
 const isValidDateValue = (value) =>
   value === undefined || value === null || value === '' || !Number.isNaN(Date.parse(value));
@@ -185,6 +186,8 @@ export const updateService = async (req, res) => {
     );
 
     if (!updatedService) return res.status(404).json({ message: 'Service not found' });
+
+    await syncBillForService(updatedService._id);
 
     res.status(200).json(updatedService);
   } catch (error) {

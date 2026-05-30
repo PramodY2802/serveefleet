@@ -2,6 +2,7 @@ import AppError from '../../common/errors/AppError.js';
 import { buildPaginatedResponse } from '../../common/utils/pagination.js';
 import ServiceRepository from './service.repository.js';
 import VehicleRepository from '../vehicle/vehicle.repository.js';
+import BillingService from '../billing/billing.service.js';
 import { toServiceResponse } from './service.mapper.js';
 import { createServiceDto, updateServiceDto } from './service.dto.js';
 
@@ -60,6 +61,9 @@ class ServiceService {
     }
 
     const updated = await ServiceRepository.updateById(id, updateServiceDto(payload));
+    if (updated) {
+      await BillingService.syncBillFromService(updated, user);
+    }
     return toServiceResponse(updated);
   }
 
