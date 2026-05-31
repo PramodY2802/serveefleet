@@ -46,12 +46,12 @@ mongoose
     useUnifiedTopology: true
   })
   .then(() => {
-    console.log('✅ MongoDB connected');
+    console.log('âœ… MongoDB connected');
     app.listen(PORT, () => {
-      console.log(`🚀 Server running on http://localhost:${PORT}`);
+      console.log(`ðŸš€ Server running on http://localhost:${PORT}`);
     });
   })
   .catch((err) => {
-    console.error('❌ MongoDB connection error:', err);
+    console.error('âŒ MongoDB connection error:', err);
     process.exit(1);
   });
