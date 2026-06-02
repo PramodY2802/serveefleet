@@ -2,11 +2,21 @@ import { calculateBillTotals, normalizeBillItems } from '../billing/billing.util
 
 export const toServiceResponse = (service) => {
   if (!service) return null;
-  const customer = service.vehicle?.customer || service.customer;
+  const customerWithDetails = (value) =>
+    value &&
+    typeof value === 'object' &&
+    (value.name || value.email || value.phone || value.fullName || value.companyName || value.businessName || value.contactName);
+  const customer = customerWithDetails(service.customer)
+    ? service.customer
+    : customerWithDetails(service.vehicle?.customer)
+      ? service.vehicle.customer
+      : service.customer || service.vehicle?.customer;
+  const customerId = customer?._id || customer?.id;
+  const customerName = customer?.name || customer?.fullName || customer?.companyName || customer?.businessName || customer?.contactName;
   const mappedCustomer = customer
     ? {
-        id: customer._id,
-        name: customer.name,
+        id: customerId,
+        name: customerName || customer.name,
         email: customer.email,
         phone: customer.phone,
       }
@@ -38,6 +48,8 @@ export const toServiceResponse = (service) => {
     pricingSummary: service.pricingSummary || calculated.pricingSummary,
     taxBreakdown: service.taxBreakdown || calculated.taxBreakdown,
     isActive: service.isActive,
+    customerId,
+    customerName,
     customer: mappedCustomer,
     vehicle: service.vehicle
       ? {
@@ -46,6 +58,8 @@ export const toServiceResponse = (service) => {
           plateColor: service.vehicle.plateColor || 'white',
           make: service.vehicle.make,
           model: service.vehicle.model,
+          customerId,
+          customerName,
           customer: mappedCustomer,
         }
       : undefined,

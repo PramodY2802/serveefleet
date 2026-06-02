@@ -41,6 +41,7 @@ const verifyOtpSchema = z.object({
 
 const resetPasswordSchema = z.object({
   email: z.string().email('Valid email is required'),
+  resetToken: z.string().min(1, 'Reset token is required'),
   newPassword: z.string().min(8, 'New password must be at least 8 characters'),
   confirmPassword: z.string().min(8, 'Confirm password is required'),
 }).superRefine((payload, ctx) => {

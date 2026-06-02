@@ -8,13 +8,41 @@ import {
   hashToken,
 } from './auth.tokens.js';
 
+const toPlainUser = (user) => {
+  if (user?._doc) {
+    return {
+      ...user._doc,
+      _id: user._doc._id ?? user._id ?? null,
+      id: user._doc.id ?? user.id ?? user._doc._id ?? user._id ?? null,
+    };
+  }
+
+  if (user?.toObject) {
+    const plain = user.toObject({ getters: true, virtuals: false });
+    return {
+      ...plain,
+      _id: plain._id ?? user._id ?? null,
+      id: plain.id ?? user.id ?? plain._id ?? user._id ?? null,
+    };
+  }
+
+  return user || {};
+};
+
+const getUserId = (user) => {
+  const plainUser = toPlainUser(user);
+  return plainUser._id || plainUser.id || null;
+};
+
+const getUserField = (user, field) => toPlainUser(user)?.[field] ?? null;
+
 const normalizeUser = (user) => ({
-  id: user._id,
-  name: user.name,
-  email: user.email,
-  role: user.role,
-  avatar: user.avatar,
-  createdAt: user.createdAt,
+  id: getUserId(user),
+  name: getUserField(user, 'name'),
+  email: getUserField(user, 'email'),
+  role: getUserField(user, 'role'),
+  avatar: getUserField(user, 'avatar'),
+  createdAt: getUserField(user, 'createdAt'),
 });
 
 const createTransporter = () =>
@@ -126,6 +154,7 @@ class AuthService {
   static async forgotPassword({ email }) {
     const normalizedEmail = email.toLowerCase();
     const user = await AuthRepository.findByEmail(normalizedEmail);
+    const userCount = await AuthRepository.countByEmail(normalizedEmail);
 
     if (!user) {
       return {
@@ -136,7 +165,13 @@ class AuthService {
     const otp = String(Math.floor(1000 + Math.random() * 9000));
     const hashedOtp = hashToken(otp);
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
-    await AuthRepository.setOtpForUser(user._id, hashedOtp, expiresAt);
+    console.log('[auth:forgotPassword] generating OTP', {
+      email: normalizedEmail,
+      userCount,
+      now: new Date().toISOString(),
+      otpExpiresAt: expiresAt.toISOString(),
+    });
+    await AuthRepository.setOtpForEmail(normalizedEmail, hashedOtp, expiresAt);
 
     const transporter = createTransporter();
     await transporter.sendMail({
@@ -154,9 +189,28 @@ class AuthService {
   static async verifyOtp({ email, otp }) {
     const normalizedEmail = email.toLowerCase();
     const user = await AuthRepository.findByEmail(normalizedEmail);
+    const userCount = await AuthRepository.countByEmail(normalizedEmail);
     if (!user || !user.otp || !user.otpExpires) {
+      console.log('[auth:verifyOtp] missing OTP record', {
+        email: normalizedEmail,
+        userCount,
+        now: new Date().toISOString(),
+        hasUser: Boolean(user),
+        hasOtp: Boolean(user?.otp),
+        hasOtpExpires: Boolean(user?.otpExpires),
+      });
       throw new AppError('Invalid OTP or email', 400);
     }
+
+    console.log('[auth:verifyOtp] comparing OTP expiry', {
+      email: normalizedEmail,
+      userCount,
+      now: new Date().toISOString(),
+      otpExpiresAt: user.otpExpires instanceof Date
+        ? user.otpExpires.toISOString()
+        : user.otpExpires,
+      otpExpiresType: user.otpExpires?.constructor?.name || typeof user.otpExpires,
+    });
 
     if (user.otpExpires < new Date()) {
       throw new AppError('OTP has expired', 400);
@@ -167,43 +221,81 @@ class AuthService {
       throw new AppError('Invalid OTP', 400);
     }
 
-    await AuthRepository.clearOtpForUser(user._id);
-    return { message: 'OTP verified successfully' };
+    const resetToken = generateRefreshToken();
+    const resetTokenHash = hashToken(resetToken);
+    const resetTokenExpires = new Date(Date.now() + 10 * 60 * 1000);
+
+    await AuthRepository.setPasswordResetTokenForEmail(normalizedEmail, resetTokenHash, resetTokenExpires);
+    await AuthRepository.clearOtpForEmail(normalizedEmail);
+
+    return {
+      message: 'OTP verified successfully',
+      resetToken,
+    };
   }
 
-  static async resetPassword({ email, newPassword, confirmPassword }) {
+  static async resetPassword({ email, newPassword, confirmPassword, resetToken }) {
     if (newPassword !== confirmPassword) {
       throw new AppError('Passwords do not match', 400);
     }
 
     const normalizedEmail = email.toLowerCase();
     const user = await AuthRepository.findByEmail(normalizedEmail);
-    if (!user || !user.otp || !user.otpExpires) {
+    if (!user || !user.passwordResetToken || !user.passwordResetTokenExpires || !resetToken) {
       throw new AppError('Invalid password reset request', 400);
     }
 
-    if (user.otpExpires < new Date()) {
-      throw new AppError('OTP has expired', 400);
+    if (user.passwordResetTokenExpires < new Date()) {
+      throw new AppError('Password reset session has expired', 400);
+    }
+
+    const providedTokenHash = hashToken(resetToken);
+    if (providedTokenHash !== user.passwordResetToken) {
+      throw new AppError('Invalid password reset request', 400);
     }
 
     user.password = newPassword;
     user.passwordChangedAt = new Date();
     user.otp = undefined;
     user.otpExpires = undefined;
+    user.passwordResetToken = undefined;
+    user.passwordResetTokenExpires = undefined;
     await user.save();
+    await AuthRepository.clearPasswordResetTokenForEmail(normalizedEmail);
     await AuthRepository.revokeAllRefreshTokensForUser(user._id, 'system', 'Password reset');
 
     return { message: 'Password has been reset successfully' };
   }
 
-  static async googleOAuthCallback(profile, ip) {
-    const user = await AuthRepository.findOrCreateGoogleUser(profile);
-    const accessToken = createAccessToken(user);
+  static async googleOAuthCallback(user, ip) {
+    let resolvedUser = user;
+
+    if (!getUserId(resolvedUser) && resolvedUser?.email) {
+      resolvedUser = await AuthRepository.findByEmail(resolvedUser.email.toLowerCase());
+      console.info('[auth:google] reloaded google user from email for token issuance', {
+        email: user.email,
+        found: Boolean(resolvedUser),
+        userId: getUserId(resolvedUser),
+      });
+    }
+
+    if (!getUserId(resolvedUser)) {
+      console.error('[auth:google] Google user is missing after authentication', {
+        hasEmail: Boolean(user?.email),
+        email: user?.email,
+        keys: user ? Object.keys(user) : [],
+      });
+      throw new AppError('Google user is missing after authentication', 500);
+    }
+
+    const plainUser = toPlainUser(resolvedUser);
+    const userId = getUserId(plainUser);
+    const accessToken = createAccessToken(plainUser);
     const refreshToken = generateRefreshToken();
-    await AuthRepository.createRefreshToken(user._id, refreshToken, ip || 'unknown');
+    await AuthRepository.createRefreshToken(userId, refreshToken, ip || 'unknown');
 
     return {
-      user: normalizeUser(user),
+      user: normalizeUser(plainUser),
       accessToken,
       refreshToken,
     };

@@ -49,7 +49,11 @@ export const forgotPassword = asyncHandler(async (req, res) => {
 
 export const verifyOtp = asyncHandler(async (req, res) => {
   const result = await AuthService.verifyOtp(req.body);
-  return res.status(200).json({ status: 'success', message: result.message });
+  return res.status(200).json({
+    status: 'success',
+    message: result.message,
+    data: { resetToken: result.resetToken },
+  });
 });
 
 export const resetPassword = asyncHandler(async (req, res) => {

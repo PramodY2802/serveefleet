@@ -42,9 +42,18 @@ router.get('/google', passport.authenticate('google', {
 router.get('/google/callback', (req, res, next) => {
   passport.authenticate('google', { session: false }, (error, user) => {
     if (error || !user) {
+      console.error('[auth:google] callback rejected', {
+        message: error?.message || 'No user returned from passport authenticate',
+        stack: error?.stack,
+        query: req.query,
+      });
       return res.redirect(`${config.clientUrl}/login?error=google-auth-failed`);
     }
 
+    console.info('[auth:google] callback accepted', {
+      userId: user?._id?.toString?.() || user?.id,
+      email: user?.email,
+    });
     req.user = user;
     return googleOAuthCallback(req, res, next);
   })(req, res, next);

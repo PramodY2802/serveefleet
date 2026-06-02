@@ -8,7 +8,7 @@ export const createVehicle = asyncHandler(async (req, res) => {
 });
 
 export const getVehicles = asyncHandler(async (req, res) => {
-  const result = await VehicleService.getVehicles(req.query, req.user);
+  const result = await VehicleService.getVehicles(req.validatedQuery || req.query, req.user);
   return successResponse(res, result, 'Vehicles retrieved');
 });
 

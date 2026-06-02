@@ -40,6 +40,11 @@ const userSchema = new mongoose.Schema(
       select: false,
     },
     otpExpires: Date,
+    passwordResetToken: {
+      type: String,
+      select: false,
+    },
+    passwordResetTokenExpires: Date,
     isActive: {
       type: Boolean,
       default: true,

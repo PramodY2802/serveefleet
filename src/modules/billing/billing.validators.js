@@ -44,6 +44,6 @@ export const validateBillFromService = (req, res, next) => {
 };
 
 export const validateBillList = (req, res, next) => {
-  req.query = validate(req.query, billListSchema);
+  req.validatedQuery = validate(req.query, billListSchema);
   next();
 };

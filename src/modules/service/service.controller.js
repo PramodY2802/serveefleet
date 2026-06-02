@@ -8,7 +8,7 @@ export const createService = asyncHandler(async (req, res) => {
 });
 
 export const getServices = asyncHandler(async (req, res) => {
-  const result = await ServiceService.getServices(req.query, req.user);
+  const result = await ServiceService.getServices(req.validatedQuery || req.query, req.user);
   return successResponse(res, result, 'Services retrieved');
 });
 

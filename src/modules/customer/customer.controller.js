@@ -8,7 +8,7 @@ export const createCustomer = asyncHandler(async (req, res) => {
 });
 
 export const getCustomers = asyncHandler(async (req, res) => {
-  const result = await CustomerService.getCustomers(req.query, req.user);
+  const result = await CustomerService.getCustomers(req.validatedQuery || req.query, req.user);
   return successResponse(res, result, 'Customers retrieved');
 });
 

@@ -111,6 +111,6 @@ export const validateServiceId = (req, res, next) => {
 };
 
 export const validateServiceList = (req, res, next) => {
-  req.query = validate(req.query, serviceListSchema);
+  req.validatedQuery = validate(req.query, serviceListSchema);
   next();
 };

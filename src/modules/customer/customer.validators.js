@@ -57,6 +57,6 @@ export const validateCustomerId = (req, res, next) => {
 };
 
 export const validateCustomerList = (req, res, next) => {
-  req.query = validate(req.query, customerListSchema);
+  req.validatedQuery = validate(req.query, customerListSchema);
   next();
 };

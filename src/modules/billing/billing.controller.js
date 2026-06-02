@@ -8,7 +8,7 @@ export const generateBillFromService = asyncHandler(async (req, res) => {
 });
 
 export const getBills = asyncHandler(async (req, res) => {
-  const result = await BillingService.getBills(req.query, req.user);
+  const result = await BillingService.getBills(req.validatedQuery || req.query, req.user);
   return successResponse(res, result, 'Bills retrieved');
 });
 

@@ -67,6 +67,6 @@ export const validateVehicleId = (req, res, next) => {
 };
 
 export const validateVehicleList = (req, res, next) => {
-  req.query = validate(req.query, vehicleListSchema);
+  req.validatedQuery = validate(req.query, vehicleListSchema);
   next();
 };
